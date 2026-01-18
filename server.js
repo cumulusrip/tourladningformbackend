@@ -10,6 +10,17 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true })); // support form submissions
 
 // ✅ Root route with simple HTML form
+
+const createTransporter = ({ host, port, user, pass }) => {
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: false,
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false },
+  });
+};
+
 app.get("/", (req, res) => {
   res.send(`
     <h2>Book A Tour (Test Form)</h2>
@@ -89,6 +100,41 @@ const transporter = nodemailer.createTransport({
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+
+
+app.post("/api/contact", async (req, res) => {
+  const { name, email, phone, message } = req.body;
+
+  try {
+    const transporter = createTransporter({
+      host: process.env.CONTACT_SMTP_HOST,
+      port: process.env.CONTACT_SMTP_PORT,
+      user: process.env.CONTACT_SMTP_USER,
+      pass: process.env.CONTACT_SMTP_PASS,
+    });
+
+    await transporter.sendMail({
+      from: `"Website Contact" <${process.env.CONTACT_SMTP_USER}>`,
+      to: process.env.ADMIN_EMAIL,
+      subject: "New Contact Message",
+      html: `
+        <p><b>Name:</b> ${name}</p>
+        <p><b>Email:</b> ${email}</p>
+        <p><b>Phone:</b> ${phone}</p>
+        <p><b>Message:</b><br/>${message}</p>
+      `,
+    });
+
+    res.json({ success: true, message: "Message sent" });
+
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Email failed" });
+  }
+});
+
+
+
 
 app.listen(5001, () => {
   console.log("🚀 Server started on http://localhost:5001");
